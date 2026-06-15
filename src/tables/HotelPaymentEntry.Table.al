@@ -1,4 +1,4 @@
-table 50005 "Hotel Payment Entry"
+table 50104 "Hotel Payment Entry"
 {
     Caption = 'Hotel Payment Entry';
     DataClassification = CustomerContent;
@@ -15,54 +15,53 @@ table 50005 "Hotel Payment Entry"
         field(2; "Reservation No."; Code[20])
         {
             Caption = 'Reservation No.';
-            TableRelation = "Hotel Reservation";
+            TableRelation = "Hotel Reservation"."Reservation No.";
         }
-        field(3; "Invoice No."; Code[20])
-        {
-            Caption = 'Invoice No.';
-            TableRelation = "Hotel Posted Invoice"."No.";
-        }
-        field(4; "Posting Date"; Date)
+        field(3; "Posting Date"; Date)
         {
             Caption = 'Posting Date';
         }
-        field(5; "Entry Type"; Enum "Hotel Payment Type")
+        field(4; "Payment Kind"; Enum "Hotel Payment Kind")
         {
-            Caption = 'Entry Type';
+            Caption = 'Payment Kind';
         }
-        field(6; Amount; Decimal)
+        field(5; Amount; Decimal)
         {
             Caption = 'Amount';
-            AutoFormatType = 2;
+            DecimalPlaces = 2 : 2;
         }
-        field(7; Description; Text[100])
+        field(6; Status; Enum "Hotel Payment Status")
         {
-            Caption = 'Description';
+            Caption = 'Status';
         }
-        field(8; Successful; Boolean)
-        {
-            Caption = 'Successful';
-        }
-        field(9; "User ID"; Code[50])
+        field(7; "User ID"; Code[50])
         {
             Caption = 'User ID';
             TableRelation = User."User Name";
+            ValidateTableRelation = false;
         }
-        field(10; "External Reference"; Code[35])
+        field(8; Description; Text[100])
         {
-            Caption = 'External Reference';
+            Caption = 'Description';
+        }
+        field(9; "Invoice No."; Code[20])
+        {
+            Caption = 'Invoice No.';
+            TableRelation = "Hotel Invoice Header"."Invoice No.";
         }
     }
 
     keys
     {
-        key(PK; "Entry No.") { Clustered = true; }
-        key(Reservation; "Reservation No.", "Entry Type") { }
-        key(Invoice; "Invoice No.") { }
+        key(PK; "Entry No.")
+        {
+            Clustered = true;
+        }
+        key(Reservation; "Reservation No.", "Payment Kind", Status) { }
     }
 
     fieldgroups
     {
-        fieldgroup(Brick; "Entry No.", "Reservation No.", "Entry Type", Amount, Successful) { }
+        fieldgroup(Brick; "Entry No.", "Reservation No.", "Payment Kind", Amount, Status) { }
     }
 }

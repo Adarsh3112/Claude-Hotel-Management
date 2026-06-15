@@ -1,11 +1,12 @@
-page 50010 "Hotel Room List"
+page 50100 "Hotel Room List"
 {
-    PageType = List;
-    ApplicationArea = All;
-    UsageCategory = Lists;
-    SourceTable = "Hotel Room";
     Caption = 'Hotel Rooms';
+    PageType = List;
+    SourceTable = "Hotel Room";
+    UsageCategory = Lists;
+    ApplicationArea = All;
     CardPageId = "Hotel Room Card";
+    Editable = false;
 
     layout
     {
@@ -13,11 +14,9 @@ page 50010 "Hotel Room List"
         {
             repeater(Group)
             {
-                field("No."; Rec."No.") { ApplicationArea = All; }
-                field(Description; Rec.Description) { ApplicationArea = All; }
+                field("Room No."; Rec."Room No.") { ApplicationArea = All; }
                 field("Room Type"; Rec."Room Type") { ApplicationArea = All; }
-                field(Floor; Rec.Floor) { ApplicationArea = All; }
-                field("Max Occupancy"; Rec."Max Occupancy") { ApplicationArea = All; }
+                field(Description; Rec.Description) { ApplicationArea = All; }
                 field("Nightly Rate"; Rec."Nightly Rate") { ApplicationArea = All; }
                 field(Occupied; Rec.Occupied) { ApplicationArea = All; }
                 field(Blocked; Rec.Blocked) { ApplicationArea = All; }

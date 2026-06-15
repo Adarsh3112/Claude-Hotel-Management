@@ -1,73 +1,47 @@
-codeunit 50050 "Hotel Reservation Mgt"
+codeunit 50100 "Hotel Reservation Mgt"
 {
-    Access = Public;
+    Permissions = tabledata "Hotel Reservation" = rimd,
+                  tabledata "Hotel Room" = rm;
 
-    procedure CreateReservation(CustomerNo: Code[20]; RoomNo: Code[20]; CheckInDate: Date; CheckOutDate: Date; var Reservation: Record "Hotel Reservation"): Code[20]
+    procedure CreateReservation(CustomerNo: Code[20]; CheckInDate: Date; CheckOutDate: Date) ReservationNo: Code[20]
+    var
+        Reservation: Record "Hotel Reservation";
+        HotelSetup: Record "Hotel Setup";
     begin
         if CustomerNo = '' then
             Error(CustomerRequiredErr);
-        if CheckInDate = 0D then
-            Error(CheckInRequiredErr);
+        if (CheckInDate = 0D) or (CheckOutDate = 0D) then
+            Error(DatesRequiredErr);
         if CheckOutDate <= CheckInDate then
-            Error(CheckOutAfterCheckInErr);
+            Error(InvalidDateRangeErr);
 
-        Clear(Reservation);
+        HotelSetup.GetSingleton();
+        ReservationNo := HotelSetup.NextReservationNo();
+
         Reservation.Init();
-        Reservation."No." := '';
-        Reservation.Insert(true);
+        Reservation."Reservation No." := ReservationNo;
         Reservation.Validate("Customer No.", CustomerNo);
-        Reservation.Validate("Check-in Date", CheckInDate);
+        Reservation."Check-in Date" := CheckInDate;
         Reservation.Validate("Check-out Date", CheckOutDate);
-        if RoomNo <> '' then
-            Reservation.Validate("Room No.", RoomNo);
         Reservation.Status := Reservation.Status::Confirmed;
-        Reservation.RecalcTotals();
-        Reservation.Modify(true);
-        exit(Reservation."No.");
+        Reservation.Insert(true);
     end;
 
-    procedure AssignRoom(var Reservation: Record "Hotel Reservation"; NewRoomNo: Code[20])
-    begin
-        if Reservation.Status = Reservation.Status::Closed then
-            Error(ClosedReservationErr, Reservation."No.");
-        Reservation.Validate("Room No.", NewRoomNo);
-        Reservation.RecalcTotals();
-        Reservation.Modify(true);
-    end;
-
-    procedure CaptureDeposit(var Reservation: Record "Hotel Reservation"; Amount: Decimal; Successful: Boolean; ExternalRef: Code[35])
+    procedure AssignRoom(var Reservation: Record "Hotel Reservation"; RoomNo: Code[20])
     var
-        Entry: Record "Hotel Payment Entry";
+        Room: Record "Hotel Room";
     begin
-        if Amount <= 0 then
-            Error(InvalidDepositAmountErr);
+        Reservation.TestField("Reservation No.");
         if Reservation.Status = Reservation.Status::Closed then
-            Error(ClosedReservationErr, Reservation."No.");
+            Error(ReservationClosedErr, Reservation."Reservation No.");
+        Room.Get(RoomNo);
+        if Room.Blocked then
+            Error(RoomBlockedErr, RoomNo);
 
-        Clear(Entry);
-        Entry.Init();
-        Entry."Reservation No." := Reservation."No.";
-        Entry."Posting Date" := WorkDate();
-        Entry."Entry Type" := Entry."Entry Type"::Deposit;
-        Entry.Amount := Amount;
-        Entry.Successful := Successful;
-        Entry."User ID" := CopyStr(UserId(), 1, MaxStrLen(Entry."User ID"));
-        Entry."External Reference" := ExternalRef;
-        if Successful then
-            Entry.Description := DepositCapturedTxt
-        else
-            Entry.Description := DepositFailedTxt;
-        Entry.Insert(true);
+        if HasOverlap(RoomNo, Reservation."Check-in Date", Reservation."Check-out Date", Reservation."Reservation No.") then
+            Error(OverbookingErr, RoomNo);
 
-        if not Successful then begin
-            // Ensure no false-success: do not mark deposit captured
-            Reservation."Deposit Captured" := false;
-            Reservation.Modify(true);
-            Error(PaymentFailedErr);
-        end;
-
-        Reservation."Deposit Amount" := Amount;
-        Reservation."Deposit Captured" := true;
+        Reservation."Room No." := RoomNo;
         Reservation.Modify(true);
     end;
 
@@ -75,127 +49,95 @@ codeunit 50050 "Hotel Reservation Mgt"
     var
         Room: Record "Hotel Room";
     begin
-        if Reservation.Status <> Reservation.Status::Confirmed then
-            Error(MustBeConfirmedErr, Reservation."No.");
+        Reservation.TestField("Reservation No.");
         Reservation.TestField("Room No.");
-        Reservation.TestField("Check-in Date");
-        Reservation.TestField("Check-out Date");
+        if Reservation.Status <> Reservation.Status::Confirmed then
+            Error(MustBeConfirmedErr, Reservation."Reservation No.");
         if not Reservation."Deposit Captured" then
-            Error(DepositRequiredErr, Reservation."No.");
-
-        Reservation.CheckOverbooking();
+            Error(DepositRequiredErr, Reservation."Reservation No.");
 
         Room.Get(Reservation."Room No.");
+        if Room.Occupied then
+            Error(RoomAlreadyOccupiedErr, Room."Room No.");
         Room.Occupied := true;
         Room.Modify(true);
 
         Reservation.Status := Reservation.Status::Occupied;
-        Reservation."Checked In At" := CurrentDateTime();
         Reservation.Modify(true);
     end;
 
-    procedure PostServiceCharge(var Reservation: Record "Hotel Reservation"; ServiceType: Enum "Hotel Service Type"; Description: Text[100]; Quantity: Decimal; UnitPrice: Decimal)
-    var
-        ServiceCharge: Record "Hotel Service Charge";
-        LastLine: Record "Hotel Service Charge";
+    procedure CheckOut(var Reservation: Record "Hotel Reservation")
     begin
-        if Reservation.Invoiced then
-            Error(AlreadyInvoicedErr, Reservation."No.");
-        if Reservation.Status = Reservation.Status::Closed then
-            Error(ClosedReservationErr, Reservation."No.");
-        if Quantity <= 0 then
-            Quantity := 1;
-        if UnitPrice < 0 then
-            Error(NegativeAmountErr);
+        // Front Desk operational checkout: validate state and release the
+        // room. Invoice generation, final payment and closing the reservation
+        // are Finance responsibilities and are handled by separate codeunits.
+        Reservation.TestField("Reservation No.");
+        if Reservation.Status <> Reservation.Status::Occupied then
+            Error(MustBeOccupiedErr, Reservation."Reservation No.");
 
-        LastLine.SetRange("Reservation No.", Reservation."No.");
-        if LastLine.FindLast() then;
-
-        Clear(ServiceCharge);
-        ServiceCharge.Init();
-        ServiceCharge."Reservation No." := Reservation."No.";
-        ServiceCharge."Line No." := LastLine."Line No." + 10000;
-        ServiceCharge."Service Type" := ServiceType;
-        if Description = '' then
-            ServiceCharge.Description := Format(ServiceType)
-        else
-            ServiceCharge.Description := Description;
-        ServiceCharge.Quantity := Quantity;
-        ServiceCharge."Unit Price" := UnitPrice;
-        ServiceCharge.Amount := Round(Quantity * UnitPrice, 0.01);
-        ServiceCharge."Posting Date" := WorkDate();
-        ServiceCharge.Insert(true);
+        ReleaseRoom(Reservation."Room No.");
+        Reservation.Modify(true);
     end;
 
-    procedure CheckOut(var Reservation: Record "Hotel Reservation"; var PostedInvoice: Record "Hotel Posted Invoice")
+    procedure CloseReservation(var Reservation: Record "Hotel Reservation")
+    begin
+        Reservation.Status := Reservation.Status::Closed;
+        Reservation.Modify(true);
+    end;
+
+    procedure ReleaseRoom(RoomNo: Code[20])
     var
         Room: Record "Hotel Room";
-        InvoicePosting: Codeunit "Hotel Invoice Posting";
     begin
-        if Reservation.Status <> Reservation.Status::Occupied then
-            Error(MustBeOccupiedErr, Reservation."No.");
-
-        InvoicePosting.PostInvoice(Reservation, PostedInvoice);
-
-        if Room.Get(Reservation."Room No.") then begin
+        if RoomNo = '' then
+            exit;
+        if Room.Get(RoomNo) then begin
             Room.Occupied := false;
             Room.Modify(true);
         end;
-
-        Reservation.Status := Reservation.Status::Closed;
-        Reservation."Checked Out At" := CurrentDateTime();
-        Reservation.Modify(true);
     end;
 
-    procedure PostFinalPayment(var Reservation: Record "Hotel Reservation"; Amount: Decimal; Successful: Boolean; ExternalRef: Code[35])
+    procedure HasOverlap(RoomNo: Code[20]; CheckIn: Date; CheckOut: Date; ExcludeReservationNo: Code[20]): Boolean
     var
-        Entry: Record "Hotel Payment Entry";
+        Reservation: Record "Hotel Reservation";
     begin
-        if not Reservation.Invoiced then
-            Error(NotInvoicedYetErr, Reservation."No.");
-        if Amount <= 0 then
-            Error(InvalidPaymentAmountErr);
+        if RoomNo = '' then
+            exit(false);
+        if (CheckIn = 0D) or (CheckOut = 0D) then
+            exit(false);
 
-        Clear(Entry);
-        Entry.Init();
-        Entry."Reservation No." := Reservation."No.";
-        Entry."Invoice No." := Reservation."Invoice No.";
-        Entry."Posting Date" := WorkDate();
-        Entry."Entry Type" := Entry."Entry Type"::Payment;
-        Entry.Amount := Amount;
-        Entry.Successful := Successful;
-        Entry."User ID" := CopyStr(UserId(), 1, MaxStrLen(Entry."User ID"));
-        Entry."External Reference" := ExternalRef;
-        if Successful then
-            Entry.Description := PaymentCapturedTxt
-        else
-            Entry.Description := PaymentFailedTxt;
-        Entry.Insert(true);
+        Reservation.SetRange("Room No.", RoomNo);
+        Reservation.SetFilter("Reservation No.", '<>%1', ExcludeReservationNo);
+        Reservation.SetFilter(Status, '%1|%2', Reservation.Status::Confirmed, Reservation.Status::Occupied);
+        Reservation.SetFilter("Check-in Date", '<%1', CheckOut);
+        Reservation.SetFilter("Check-out Date", '>%1', CheckIn);
+        exit(not Reservation.IsEmpty());
+    end;
 
-        if not Successful then
-            Error(PaymentFailedErr);
-
-        Reservation."Paid Amount" := Reservation."Paid Amount" + Amount;
-        Reservation."Amount Due" := Reservation."Total Amount" - Reservation."Paid Amount" + Reservation."Refunded Amount";
-        Reservation.Modify(true);
+    procedure CalculateRoomCharge(var Reservation: Record "Hotel Reservation") Total: Decimal
+    var
+        Room: Record "Hotel Room";
+        Nights: Integer;
+    begin
+        if Reservation."Room No." = '' then
+            exit(0);
+        if not Room.Get(Reservation."Room No.") then
+            exit(0);
+        Nights := Reservation."Check-out Date" - Reservation."Check-in Date";
+        if Nights < 1 then
+            Nights := 1;
+        exit(Nights * Room."Nightly Rate");
     end;
 
     var
-        CustomerRequiredErr: Label 'A customer must be specified for the reservation.';
-        CheckInRequiredErr: Label 'Check-in Date is required.';
-        CheckOutAfterCheckInErr: Label 'Check-out Date must be after Check-in Date.';
-        ClosedReservationErr: Label 'Reservation %1 is closed; this action is not allowed.', Comment = '%1=Reservation No.';
-        InvalidDepositAmountErr: Label 'Deposit amount must be greater than zero.';
-        InvalidPaymentAmountErr: Label 'Payment amount must be greater than zero.';
-        PaymentFailedErr: Label 'Payment was not successful. No funds have been captured.';
-        DepositRequiredErr: Label 'Reservation %1 requires a captured deposit before check-in.', Comment = '%1=Reservation No.';
-        MustBeConfirmedErr: Label 'Reservation %1 must be in status Confirmed to check in.', Comment = '%1=Reservation No.';
-        MustBeOccupiedErr: Label 'Reservation %1 must be in status Occupied to check out.', Comment = '%1=Reservation No.';
-        AlreadyInvoicedErr: Label 'Reservation %1 has already been invoiced.', Comment = '%1=Reservation No.';
-        NotInvoicedYetErr: Label 'Reservation %1 has not been invoiced; final payment cannot be posted.', Comment = '%1=Reservation No.';
-        NegativeAmountErr: Label 'Amount cannot be negative.';
-        DepositCapturedTxt: Label 'Deposit captured';
-        DepositFailedTxt: Label 'Deposit capture failed';
-        PaymentCapturedTxt: Label 'Final payment captured';
-        PaymentFailedTxt: Label 'Final payment failed';
+        CustomerRequiredErr: Label 'A Customer No. is required to create a reservation.';
+        DatesRequiredErr: Label 'Check-in and Check-out Dates are required.';
+        InvalidDateRangeErr: Label 'Check-out Date must be after Check-in Date.';
+        ReservationClosedErr: Label 'Reservation %1 is closed and cannot be modified.';
+        RoomBlockedErr: Label 'Room %1 is blocked and cannot be assigned.';
+        OverbookingErr: Label 'Room %1 is already booked for the selected period (overbooking is not allowed).';
+        MustBeConfirmedErr: Label 'Reservation %1 must be in status Confirmed to check in.';
+        MustBeOccupiedErr: Label 'Reservation %1 must be in status Occupied to check out.';
+        DepositRequiredErr: Label 'Reservation %1 cannot be checked in because the deposit was not captured.';
+        RoomAlreadyOccupiedErr: Label 'Room %1 is already occupied.';
 }

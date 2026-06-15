@@ -1,10 +1,10 @@
-page 50015 "Hotel Setup"
+page 50105 "Hotel Setup"
 {
-    PageType = Card;
-    ApplicationArea = All;
-    UsageCategory = Administration;
-    SourceTable = "Hotel Setup";
     Caption = 'Hotel Setup';
+    PageType = Card;
+    SourceTable = "Hotel Setup";
+    UsageCategory = Administration;
+    ApplicationArea = All;
     InsertAllowed = false;
     DeleteAllowed = false;
 
@@ -12,33 +12,28 @@ page 50015 "Hotel Setup"
     {
         area(Content)
         {
-            group(Numbering)
+            group(General)
+            {
+                field("VAT %"; Rec."VAT %") { ApplicationArea = All; }
+                field("Default Currency"; Rec."Default Currency") { ApplicationArea = All; }
+            }
+            group(NumberSeries)
             {
                 Caption = 'Numbering';
-                field("Reservation Nos."; Rec."Reservation Nos.") { ApplicationArea = All; }
-                field("Invoice Nos."; Rec."Invoice Nos.") { ApplicationArea = All; }
-                field("Payment Nos."; Rec."Payment Nos.") { ApplicationArea = All; }
-            }
-            group(Tax)
-            {
-                Caption = 'Tax';
-                field("VAT %"; Rec."VAT %") { ApplicationArea = All; }
-            }
-            group(Defaults)
-            {
-                Caption = 'Defaults';
-                field("Default Currency Code"; Rec."Default Currency Code") { ApplicationArea = All; }
-            }
-            group(SecurityGroup)
-            {
-                Caption = 'Security';
-                field("Finance Permission Set"; Rec."Finance Permission Set") { ApplicationArea = All; }
+                field("Reservation No. Prefix"; Rec."Reservation No. Prefix") { ApplicationArea = All; }
+                field("Invoice No. Prefix"; Rec."Invoice No. Prefix") { ApplicationArea = All; }
+                field("Last Reservation No."; Rec."Last Reservation No.") { ApplicationArea = All; }
+                field("Last Invoice No."; Rec."Last Invoice No.") { ApplicationArea = All; }
             }
         }
     }
 
     trigger OnOpenPage()
     begin
-        Rec.GetSetup();
+        Rec.GetSingleton();
+        if not Rec.Get('') then begin
+            Rec.Init();
+            Rec.Insert();
+        end;
     end;
 }

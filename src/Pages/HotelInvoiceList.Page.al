@@ -1,12 +1,12 @@
-page 50016 "Hotel Posted Invoices"
+page 50107 "Hotel Invoice List"
 {
+    Caption = 'Hotel Invoices';
     PageType = List;
+    SourceTable = "Hotel Invoice Header";
+    UsageCategory = Lists;
     ApplicationArea = All;
-    UsageCategory = History;
-    SourceTable = "Hotel Posted Invoice";
-    Caption = 'Hotel Posted Invoices';
+    CardPageId = "Hotel Invoice Card";
     Editable = false;
-    CardPageId = "Hotel Posted Invoice Card";
 
     layout
     {
@@ -14,18 +14,19 @@ page 50016 "Hotel Posted Invoices"
         {
             repeater(Group)
             {
-                field("No."; Rec."No.") { ApplicationArea = All; }
+                field("Invoice No."; Rec."Invoice No.") { ApplicationArea = All; }
                 field("Reservation No."; Rec."Reservation No.") { ApplicationArea = All; }
                 field("Customer No."; Rec."Customer No.") { ApplicationArea = All; }
                 field("Customer Name"; Rec."Customer Name") { ApplicationArea = All; }
                 field("Posting Date"; Rec."Posting Date") { ApplicationArea = All; }
-                field("Room No."; Rec."Room No.") { ApplicationArea = All; }
-                field("Amount Excl. VAT"; Rec."Amount Excl. VAT") { ApplicationArea = All; }
+                field(Subtotal; Rec.Subtotal) { ApplicationArea = All; }
                 field("VAT %"; Rec."VAT %") { ApplicationArea = All; }
                 field("VAT Amount"; Rec."VAT Amount") { ApplicationArea = All; }
-                field("Amount Incl. VAT"; Rec."Amount Incl. VAT") { ApplicationArea = All; }
+                field("Total Incl. VAT"; Rec."Total Incl. VAT") { ApplicationArea = All; }
                 field("Deposit Applied"; Rec."Deposit Applied") { ApplicationArea = All; }
                 field("Amount Due"; Rec."Amount Due") { ApplicationArea = All; }
+                field(Paid; Rec.Paid) { ApplicationArea = All; }
+                field(Posted; Rec.Posted) { ApplicationArea = All; }
             }
         }
     }
