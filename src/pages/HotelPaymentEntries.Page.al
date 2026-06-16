@@ -1,12 +1,11 @@
-page 50106 "Hotel Payment Entries"
+page 50018 "Hotel Payment Entries"
 {
-    Caption = 'Hotel Payment Entries';
     PageType = List;
-    SourceTable = "Hotel Payment Entry";
-    UsageCategory = History;
     ApplicationArea = All;
+    UsageCategory = History;
+    SourceTable = "Hotel Payment Entry";
+    Caption = 'Hotel Payment Entries';
     Editable = false;
-    SourceTableView = sorting("Entry No.") order(descending);
 
     layout
     {
@@ -18,11 +17,12 @@ page 50106 "Hotel Payment Entries"
                 field("Posting Date"; Rec."Posting Date") { ApplicationArea = All; }
                 field("Reservation No."; Rec."Reservation No.") { ApplicationArea = All; }
                 field("Invoice No."; Rec."Invoice No.") { ApplicationArea = All; }
-                field("Payment Kind"; Rec."Payment Kind") { ApplicationArea = All; }
+                field("Entry Type"; Rec."Entry Type") { ApplicationArea = All; }
                 field(Amount; Rec.Amount) { ApplicationArea = All; }
-                field(Status; Rec.Status) { ApplicationArea = All; }
-                field("User ID"; Rec."User ID") { ApplicationArea = All; }
+                field(Successful; Rec.Successful) { ApplicationArea = All; }
                 field(Description; Rec.Description) { ApplicationArea = All; }
+                field("External Reference"; Rec."External Reference") { ApplicationArea = All; }
+                field("User ID"; Rec."User ID") { ApplicationArea = All; }
             }
         }
     }

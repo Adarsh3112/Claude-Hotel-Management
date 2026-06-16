@@ -1,4 +1,4 @@
-table 50103 "Hotel Setup"
+table 50003 "Hotel Setup"
 {
     Caption = 'Hotel Setup';
     DataClassification = CustomerContent;
@@ -9,68 +9,51 @@ table 50103 "Hotel Setup"
         {
             Caption = 'Primary Key';
         }
-        field(2; "VAT %"; Decimal)
+        field(10; "VAT %"; Decimal)
         {
             Caption = 'VAT %';
             MinValue = 0;
             MaxValue = 100;
             DecimalPlaces = 0 : 5;
         }
-        field(3; "Default Currency"; Code[10])
+        field(20; "Reservation Nos."; Code[20])
         {
-            Caption = 'Default Currency';
+            Caption = 'Reservation Nos.';
+            TableRelation = "No. Series";
         }
-        field(10; "Reservation No. Prefix"; Code[10])
+        field(21; "Invoice Nos."; Code[20])
         {
-            Caption = 'Reservation No. Prefix';
+            Caption = 'Invoice Nos.';
+            TableRelation = "No. Series";
         }
-        field(11; "Invoice No. Prefix"; Code[10])
+        field(22; "Payment Nos."; Code[20])
         {
-            Caption = 'Invoice No. Prefix';
+            Caption = 'Payment Nos.';
+            TableRelation = "No. Series";
         }
-        field(12; "Last Reservation No."; Integer)
+        field(30; "Default Currency Code"; Code[10])
         {
-            Caption = 'Last Reservation No.';
+            Caption = 'Default Currency Code';
+            TableRelation = Currency;
         }
-        field(13; "Last Invoice No."; Integer)
+        field(40; "Finance Permission Set"; Code[20])
         {
-            Caption = 'Last Invoice No.';
+            Caption = 'Finance Permission Set ID';
+            InitValue = 'HOTEL FINANCE';
         }
     }
 
     keys
     {
-        key(PK; "Primary Key")
-        {
-            Clustered = true;
-        }
+        key(PK; "Primary Key") { Clustered = true; }
     }
 
-    procedure GetSingleton()
+    procedure GetSetup()
     begin
         if not Get('') then begin
             Init();
             "Primary Key" := '';
-            "VAT %" := 0;
-            "Reservation No. Prefix" := 'RES';
-            "Invoice No. Prefix" := 'INV';
             Insert();
         end;
-    end;
-
-    procedure NextReservationNo(): Code[20]
-    begin
-        GetSingleton();
-        "Last Reservation No." += 1;
-        Modify();
-        exit(CopyStr("Reservation No. Prefix" + PadStr('', 5 - StrLen(Format("Last Reservation No.")), '0') + Format("Last Reservation No."), 1, 20));
-    end;
-
-    procedure NextInvoiceNo(): Code[20]
-    begin
-        GetSingleton();
-        "Last Invoice No." += 1;
-        Modify();
-        exit(CopyStr("Invoice No. Prefix" + PadStr('', 5 - StrLen(Format("Last Invoice No.")), '0') + Format("Last Invoice No."), 1, 20));
     end;
 }

@@ -1,11 +1,11 @@
-page 50104 "Hotel Service Charges"
+page 50014 "Hotel Service Charge Subform"
 {
-    Caption = 'Service Charges';
     PageType = ListPart;
+    ApplicationArea = All;
     SourceTable = "Hotel Service Charge";
     AutoSplitKey = true;
-    ApplicationArea = All;
     DelayedInsert = true;
+    Caption = 'Service Charges';
 
     layout
     {
@@ -15,8 +15,11 @@ page 50104 "Hotel Service Charges"
             {
                 field("Service Type"; Rec."Service Type") { ApplicationArea = All; }
                 field(Description; Rec.Description) { ApplicationArea = All; }
+                field(Quantity; Rec.Quantity) { ApplicationArea = All; }
+                field("Unit Price"; Rec."Unit Price") { ApplicationArea = All; }
                 field(Amount; Rec.Amount) { ApplicationArea = All; }
                 field("Posting Date"; Rec."Posting Date") { ApplicationArea = All; }
+                field("Posted By"; Rec."Posted By") { ApplicationArea = All; Visible = false; }
             }
         }
     }
